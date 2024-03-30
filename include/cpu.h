@@ -3,7 +3,9 @@
 
 #include "memory.h"
 
-#define RESET_VECTOR 0xfffc;
+#define NMI_VECTOR   0xfffa
+#define RESET_VECTOR 0xfffc
+#define IRQ_VECTOR   0xfffe
 
 #define STACK_BASE  0x0100
 #define STACK_RESET 0xfd
