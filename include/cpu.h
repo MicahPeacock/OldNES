@@ -10,6 +10,8 @@
 #define STACK_BASE  0x0100
 #define STACK_RESET 0xfd
 
+struct Emulator;
+
 typedef union StatusFlags {
     struct {
         byte c : 1; // Carry flag
@@ -40,9 +42,17 @@ typedef struct CPU {
     byte sp;
     byte a, x, y;
     StatusFlags status;
+
+    word cycles;
+    word skip_cycles;
+    byte pending_nmi;
+    byte pending_irq;
 } CPU;
 
-void reset_cpu(CPU* cpu);
-byte execute(CPU* cpu, Memory* memory);
+void init_cpu(struct Emulator* emulator);
+
+void reset_cpu(struct CPU* cpu);
+void step_cpu(struct CPU* cpu);
+byte execute_cpu(struct CPU* cpu, Memory* memory);
 
 #endif //OLDNES_CPU_H

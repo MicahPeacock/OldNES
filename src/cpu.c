@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include "cpu_opcodes.h"
+#include "emulator.h"
 
 // Memory access functions
 static byte fetch_byte(CPU* cpu, const Memory* memory);
@@ -45,6 +46,10 @@ static byte ror(CPU* cpu, byte operand);
 static void push_status(CPU* cpu, Memory* memory);
 static void pull_status(CPU* cpu, const Memory* memory);
 
+void init_cpu(struct Emulator* emulator) {
+    reset_cpu(&emulator->cpu);
+}
+
 void reset_cpu(CPU* cpu) {
     cpu->pc = RESET_VECTOR;
     cpu->sp = STACK_RESET;
@@ -53,12 +58,12 @@ void reset_cpu(CPU* cpu) {
     cpu->status.i = 1;
 }
 
-byte execute(CPU* cpu, Memory* memory) {
+byte execute_cpu(struct CPU* cpu, Memory* memory) {
     const byte opcode = fetch_byte(cpu, memory);
-    const Instruction instr = INSTRUCTIONS[opcode];
+    const Instruction* instr = &INSTRUCTIONS[opcode];
 
     word address;
-    switch (instr.address_mode) {
+    switch (instr->address_mode) {
         case IMM: address = immediate(cpu);           break;
         case ZPG: address = zero_page(cpu, memory);   break;
         case ZPX: address = zero_page_x(cpu, memory); break;
@@ -72,24 +77,147 @@ byte execute(CPU* cpu, Memory* memory) {
         default:  address = 0; // Ignore
     }
 
-    switch (instr.operation) {
-        case ADC: {
-            const byte operand = read_byte(address, memory);
-            adc(cpu, operand);
+    switch (instr->operation) {
+        case LDA: {
+            load_register(cpu, address, &cpu->a, memory);
+            break;
+        }
+        case LDX: {
+            load_register(cpu, address, &cpu->x, memory);
+            break;
+        }
+        case LDY: {
+            load_register(cpu, address, &cpu->y, memory);
+            break;
+        }
+        case STA: {
+            write_byte(address, cpu->a, memory);
+            break;
+        }
+        case STX: {
+            write_byte(address, cpu->x, memory);
+            break;
+        }
+        case STY: {
+            write_byte(address, cpu->y, memory);
+            break;
+        }
+        case TSX: {
+            cpu->x = cpu->sp;
+            set_zn(cpu, cpu->x);
+            break;
+        }
+        case TXS: {
+            cpu->sp = cpu->x;
+            break;
+        }
+        case PHA: {
+            push_byte(cpu, cpu->a, memory);
+            break;
+        }
+        case PLA: {
+            cpu->a = pull_byte(cpu, memory);
+            set_zn(cpu, cpu->a);
+            break;
+        }
+        case PHP: {
+            push_status(cpu, memory);
+            break;
+        }
+        case PLP: {
+            pull_status(cpu, memory);
+            break;
+        }
+        case JMP: {
+            cpu->pc = address;
+            break;
+        }
+        case JSR: {
+            push_word(cpu, cpu->pc - 1, memory);
+            cpu->pc = address;
+            break;
+        }
+        case RTS: {
+            cpu->pc = pull_word(cpu, memory) + 1;
             break;
         }
         case AND: {
             and(cpu, address, memory);
             break;
         }
-        case ASL: {
-            if (instr.address_mode == ACC) {
-                cpu->a = asl(cpu, cpu->a);
-            } else {
-                const byte operand = read_byte(address, memory);
-                const byte value = asl(cpu, operand);
-                write_byte(address, value, memory);
-            }
+        case ORA: {
+            ora(cpu, address, memory);
+            break;
+        }
+        case EOR: {
+            eor(cpu, address, memory);
+            break;
+        }
+        case BIT: {
+            const byte value = read_byte(address, memory);
+            cpu->status.z = !(cpu->a & value);
+            cpu->status.n = (value & NEGATIVE_BIT) != 0;
+            cpu->status.v = (value & OVERFLOW_BIT) != 0;
+            break;
+        }
+        case TAX: {
+            cpu->x = cpu->a;
+            set_zn(cpu, cpu->x);
+            break;
+        }
+        case TAY: {
+            cpu->y = cpu->a;
+            set_zn(cpu, cpu->y);
+            break;
+        }
+        case TXA: {
+            cpu->a = cpu->x;
+            set_zn(cpu, cpu->a);
+            break;
+        }
+        case TYA: {
+            cpu->a = cpu->y;
+            set_zn(cpu, cpu->a);
+            break;
+        }
+        case INX: {
+            cpu->x++;
+            set_zn(cpu, cpu->x);
+            break;
+        }
+        case INY: {
+            cpu->y++;
+            set_zn(cpu, cpu->y);
+            break;
+        }
+        case DEX: {
+            cpu->x--;
+            set_zn(cpu, cpu->x);
+            break;
+        }
+        case DEY: {
+            cpu->y--;
+            set_zn(cpu, cpu->y);
+            break;
+        }
+        case INC: {
+            const byte value = read_byte(address, memory) + 1;
+            write_byte(address, value, memory);
+            set_zn(cpu, value);
+            break;
+        }
+        case DEC: {
+            const byte value = read_byte(address, memory) - 1;
+            write_byte(address, value, memory);
+            set_zn(cpu, value);
+            break;
+        }
+        case BEQ: {
+            branch_if(cpu, cpu->status.z, 1, memory);
+            break;
+        }
+        case BNE: {
+            branch_if(cpu, cpu->status.z, 0, memory);
             break;
         }
         case BCC: {
@@ -100,59 +228,58 @@ byte execute(CPU* cpu, Memory* memory) {
             branch_if(cpu, cpu->status.c, 1, memory);
             break;
         }
-        case BEQ: {
-            branch_if(cpu, cpu->status.z, 1, memory);
-            break;
-        }
-        case BIT: {
-            const byte value = read_byte(address, memory);
-            cpu->status.z = !(cpu->a & value);
-            cpu->status.n = (value & NEGATIVE_BIT) != 0;
-            cpu->status.v = (value & OVERFLOW_BIT) != 0;
-            break;
-        }
         case BMI: {
             branch_if(cpu, cpu->status.n, 1, memory);
-            break;
-        }
-        case BNE: {
-            branch_if(cpu, cpu->status.z, 0, memory);
             break;
         }
         case BPL: {
             branch_if(cpu, cpu->status.n, 0, memory);
             break;
         }
-        case BRK: {
-            push_word(cpu, cpu->pc + 1, memory);
-            push_status(cpu, memory);
-            cpu->pc = read_word(IRQ_VECTOR, memory);
-            cpu->status.b = 1;
-            cpu->status.i = 1;
+        case BVS: {
+            branch_if(cpu, cpu->status.v, 1, memory);
             break;
         }
         case BVC: {
             branch_if(cpu, cpu->status.v, 0, memory);
             break;
         }
-        case BVS: {
-            branch_if(cpu, cpu->status.v, 1, memory);
-            break;
-        }
         case CLC: {
             cpu->status.c = 0;
+            break;
+        }
+        case SEC: {
+            cpu->status.c = 1;
             break;
         }
         case CLD: {
             cpu->status.d = 0;
             break;
         }
+        case SED: {
+            cpu->status.d = 1;
+            break;
+        }
         case CLI: {
             cpu->status.i = 0;
             break;
         }
+        case SEI: {
+            cpu->status.i = 1;
+            break;
+        }
         case CLV: {
             cpu->status.v = 0;
+            break;
+        }
+        case ADC: {
+            const byte operand = read_byte(address, memory);
+            adc(cpu, operand);
+            break;
+        }
+        case SBC: {
+            const byte operand = read_byte(address, memory);
+            sbc(cpu, operand);
             break;
         }
         case CMP: {
@@ -170,65 +297,18 @@ byte execute(CPU* cpu, Memory* memory) {
             compare(cpu, operand, cpu->y);
             break;
         }
-        case DEC: {
-            const byte value = read_byte(address, memory) - 1;
-            write_byte(address, value, memory);
-            set_zn(cpu, value);
-            break;
-        }
-        case DEX: {
-            cpu->x--;
-            set_zn(cpu, cpu->x);
-            break;
-        }
-        case DEY: {
-            cpu->y--;
-            set_zn(cpu, cpu->y);
-            break;
-        }
-        case EOR: {
-            eor(cpu, address, memory);
-            break;
-        }
-        case INC: {
-            const byte value = read_byte(address, memory) + 1;
-            write_byte(address, value, memory);
-            set_zn(cpu, value);
-            break;
-        }
-        case INX: {
-            cpu->x++;
-            set_zn(cpu, cpu->x);
-            break;
-        }
-        case INY: {
-            cpu->y++;
-            set_zn(cpu, cpu->y);
-            break;
-        }
-        case JMP: {
-            cpu->pc = address;
-            break;
-        }
-        case JSR: {
-            push_word(cpu, cpu->pc - 1, memory);
-            cpu->pc = address;
-            break;
-        }
-        case LDA: {
-            load_register(cpu, address, &cpu->a, memory);
-            break;
-        }
-        case LDX: {
-            load_register(cpu, address, &cpu->x, memory);
-            break;
-        }
-        case LDY: {
-            load_register(cpu, address, &cpu->y, memory);
+        case ASL: {
+            if (instr->address_mode == ACC) {
+                cpu->a = asl(cpu, cpu->a);
+            } else {
+                const byte operand = read_byte(address, memory);
+                const byte value = asl(cpu, operand);
+                write_byte(address, value, memory);
+            }
             break;
         }
         case LSR: {
-            if (instr.address_mode == ACC) {
+            if (instr->address_mode == ACC) {
                 cpu->a = lsr(cpu, cpu->a);
             } else {
                 const byte operand = read_byte(address, memory);
@@ -237,32 +317,8 @@ byte execute(CPU* cpu, Memory* memory) {
             }
             break;
         }
-        case NOP: {
-            break;
-        }
-        case ORA: {
-            ora(cpu, address, memory);
-            break;
-        }
-        case PHA: {
-            push_byte(cpu, cpu->a, memory);
-            break;
-        }
-        case PHP: {
-            push_status(cpu, memory);
-            break;
-        }
-        case PLA: {
-            cpu->a = pull_byte(cpu, memory);
-            set_zn(cpu, cpu->a);
-            break;
-        }
-        case PLP: {
-            pull_status(cpu, memory);
-            break;
-        }
         case ROL: {
-            if (instr.address_mode == ACC) {
+            if (instr->address_mode == ACC) {
                 cpu->a = rol(cpu, cpu->a);
             } else {
                 const byte operand = read_byte(address, memory);
@@ -272,7 +328,7 @@ byte execute(CPU* cpu, Memory* memory) {
             break;
         }
         case ROR: {
-            if (instr.address_mode == ACC) {
+            if (instr->address_mode == ACC) {
                 cpu->a = ror(cpu, cpu->a);
             } else {
                 const byte operand = read_byte(address, memory);
@@ -281,78 +337,27 @@ byte execute(CPU* cpu, Memory* memory) {
             }
             break;
         }
+        case NOP: {
+            break;
+        }
+        case BRK: {
+            push_word(cpu, cpu->pc + 1, memory);
+            push_status(cpu, memory);
+            cpu->pc = read_word(IRQ_VECTOR, memory);
+            cpu->status.b = 1;
+            cpu->status.i = 1;
+            break;
+        }
         case RTI: {
             pull_status(cpu, memory);
             cpu->pc = pull_word(cpu, memory);
             break;
         }
-        case RTS: {
-            cpu->pc = pull_word(cpu, memory) + 1;
-            break;
-        }
-        case SBC: {
-            const byte operand = read_byte(address, memory);
-            sbc(cpu, operand);
-            break;
-        }
-        case SEC: {
-            cpu->status.c = 1;
-            break;
-        }
-        case SED: {
-            cpu->status.d = 1;
-            break;
-        }
-        case SEI: {
-            cpu->status.i = 1;
-            break;
-        }
-        case STA: {
-            write_byte(address, cpu->a, memory);
-            break;
-        }
-        case STX: {
-            write_byte(address, cpu->x, memory);
-            break;
-        }
-        case STY: {
-            write_byte(address, cpu->y, memory);
-            break;
-        }
-        case TAX: {
-            cpu->x = cpu->a;
-            set_zn(cpu, cpu->x);
-            break;
-        }
-        case TAY: {
-            cpu->y = cpu->a;
-            set_zn(cpu, cpu->y);
-            break;
-        }
-        case TSX: {
-            cpu->x = cpu->sp;
-            set_zn(cpu, cpu->x);
-            break;
-        }
-        case TXS: {
-            cpu->sp = cpu->x;
-            break;
-        }
-        case TXA: {
-            cpu->a = cpu->x;
-            set_zn(cpu, cpu->a);
-            break;
-        }
-        case TYA: {
-            cpu->a = cpu->y;
-            set_zn(cpu, cpu->a);
-            break;
-        }
-        case XXX: {
+        default: {
             break;
         }
     }
-    return instr.cycles;
+    return instr->cycles;
 }
 
 static byte fetch_byte(CPU* cpu, const Memory* memory) {
@@ -360,8 +365,8 @@ static byte fetch_byte(CPU* cpu, const Memory* memory) {
 }
 
 static word fetch_word(CPU* cpu, const Memory* memory) {
-    const byte lo = fetch_byte(cpu, memory);
-    const byte hi = fetch_byte(cpu, memory);
+    const word lo = fetch_byte(cpu, memory);
+    const word hi = fetch_byte(cpu, memory);
     return lo | (hi << 8);
 }
 
@@ -370,8 +375,8 @@ static byte read_byte(word address, const Memory* memory) {
 }
 
 static word read_word(word address, const Memory* memory) {
-    const byte lo = read_byte(address, memory);
-    const byte hi = read_byte(address + 1, memory);
+    const word lo = read_byte(address, memory);
+    const word hi = read_byte(address + 1, memory);
     return lo | (hi << 8);
 }
 
@@ -411,7 +416,7 @@ static void set_zn(CPU* cpu, byte reg) {
 }
 
 static word sp_to_address(const CPU* cpu) {
-    return STACK_BASE | (word) cpu->sp;
+    return STACK_BASE | (word)cpu->sp;
 }
 
 static byte page_crossed(word addr1, word addr2) {
@@ -442,7 +447,7 @@ static word absolute_x(CPU* cpu, const Memory* memory) {
     const word abs_address = fetch_word(cpu, memory);
     const word abs_address_x = fetch_word(cpu, memory) + cpu->x;
     if (page_crossed(abs_address, abs_address_x)) {
-
+        cpu->skip_cycles++;
     }
     return abs_address_x;
 }
@@ -451,7 +456,7 @@ static word absolute_y(CPU* cpu, const Memory* memory) {
     const word abs_address = fetch_word(cpu, memory);
     const word abs_address_y = fetch_word(cpu, memory) + cpu->y;
     if (page_crossed(abs_address, abs_address_y)) {
-
+        cpu->skip_cycles++;
     }
     return abs_address_y;
 }
@@ -471,7 +476,7 @@ static word indirect_y(CPU* cpu, const Memory* memory) {
     const word ind_address = read_word(zpg_address, memory);
     const word ind_address_y = ind_address + cpu->y;
     if (page_crossed(ind_address, ind_address_y)) {
-
+        cpu->skip_cycles++;
     }
     return ind_address_y;
 }
