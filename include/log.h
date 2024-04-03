@@ -7,9 +7,10 @@
 #define PRINTF(...) printf(__VA_ARGS__)
 
 enum LogLevel {
-    ERROR = 0,
+    DEBUG = 0,
+    ERROR,
     INFO,
-    DEBUG,
+
 };
 
 void LOG(enum LogLevel level, const char* fmt, ...);

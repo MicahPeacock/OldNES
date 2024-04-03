@@ -11,26 +11,44 @@ void init_emulator(struct Emulator* emulator, int argc, char* argv[]) {
     load_mapper(argv[1], &emulator->mapper);
 
     init_memory(emulator);
+    init_ppu(emulator);
     init_cpu(emulator);
+
+    struct GraphicsContext* gfx = &emulator->gfx;
+    gfx->width  = NES_VIDEO_WIDTH;
+    gfx->height = NES_VIDEO_HEIGHT;
+    gfx->scale  = 3.0f;
+    init_graphics(&emulator->gfx, SDL_INIT_EVERYTHING);
 
     emulator->exit  = 0;
     emulator->pause = 0;
 }
 
 void free_emulator(struct Emulator* emulator) {
+    free_graphics(&emulator->gfx);
     free_mapper(&emulator->mapper);
 }
 
 void run_emulator(struct Emulator* emulator) {
-    struct CPU* const cpu = &emulator->cpu;
+    struct CPU* cpu = &emulator->cpu;
+    struct PPU* ppu = &emulator->ppu;
+    struct Controller* pad1 = &emulator->cpu_bus.pad1;
+    struct Controller* pad2 = &emulator->cpu_bus.pad2;
+    struct GraphicsContext* gfx = &emulator->gfx;
 
     SDL_Event event;
     while (!emulator->exit) {
         while (SDL_PollEvent(&event)) {
+            update_controller(pad1, &event);
+            update_controller(pad2, &event);
             handle_event(emulator, &event);
         }
         if (!emulator->pause) {
+            execute_ppu(&emulator->ppu);
+            execute_ppu(&emulator->ppu);
+            execute_ppu(&emulator->ppu);
             execute_cpu(&emulator->cpu);
+            render_graphics(gfx, ppu->screen_buffer);
         } else {
 
         }
