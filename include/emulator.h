@@ -2,9 +2,8 @@
 #define OLDNES_EMULATOR_H
 
 #include "cpu.h"
-#include "graphics.h"
+#include "memory.h"
 #include "mapper.h"
-
 
 typedef struct Emulator {
     struct CPU cpu;

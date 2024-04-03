@@ -1,8 +1,6 @@
 #ifndef OLDNES_MAPPER_H
 #define OLDNES_MAPPER_H
 
-#include <stdlib.h>
-
 #include "definitions.h"
 
 typedef enum Mirroring {

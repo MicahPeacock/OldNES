@@ -10,8 +10,9 @@ struct Emulator;
 
 typedef struct Memory {
     byte ram[RAM_SIZE];
+
     struct Emulator* emulator;
-    struct Mapper* mapper;
+    struct Mapper*   mapper;
 } Memory;
 
 void init_memory(struct Emulator* emulator);

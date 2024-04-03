@@ -19,8 +19,8 @@ typedef struct INESHeader {
     byte unused[5];
 } INESHeader;
 
-static void* read_rom_data(SDL_RWops* file, usize size);
-static void select_mapper(Mapper* mapper);
+static void read_rom_data(SDL_RWops* file, byte** ptr, usize size);
+static void select_mapper(struct Mapper* mapper);
 
 static byte read_prg(const struct Mapper* mapper, word address);
 static byte read_chr(const struct Mapper* mapper, word address);
@@ -51,8 +51,8 @@ void load_mapper(const char* filename, struct Mapper* mapper) {
     mapper->mirroring = (header.flags6 & 0x08) ?: (header.flags6 & 0x01);
     mapper->mapper_id = (header.flags7 & 0xf0) | ((header.flags6 & 0xf0) >> 4);
 
-    mapper->prg_rom = read_rom_data(file, 0x4000 * mapper->prg_banks);
-    mapper->chr_rom = read_rom_data(file, 0x2000 * mapper->chr_banks);
+    read_rom_data(file, &mapper->prg_rom, 0x4000 * mapper->prg_banks);
+    read_rom_data(file, &mapper->chr_rom, 0x2000 * mapper->chr_banks);
 
     SDL_RWclose(file);
 
@@ -67,11 +67,13 @@ void free_mapper(struct Mapper* mapper) {
     LOG(DEBUG, "Mapper cleanup complete");
 }
 
-static void* read_rom_data(SDL_RWops* file, usize size) {
-    if (!size) return NULL;
-    void* ptr = malloc(size);
-    SDL_RWread(file, ptr, size, 1);
-    return ptr;
+static void read_rom_data(SDL_RWops* file, byte** ptr, usize size) {
+    if (size) {
+        *ptr = malloc(size);
+        SDL_RWread(file, *ptr, size, 1);
+    } else {
+        *ptr = NULL;
+    }
 }
 
 static void select_mapper(Mapper* mapper) {

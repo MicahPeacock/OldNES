@@ -1,3 +1,5 @@
+#include <SDL2/SDL.h>
+
 #include "emulator.h"
 
 static void handle_event(struct Emulator* emulator, const SDL_Event* event);
@@ -28,7 +30,7 @@ void run_emulator(struct Emulator* emulator) {
             handle_event(emulator, &event);
         }
         if (!emulator->pause) {
-
+            execute_cpu(&emulator->cpu);
         } else {
 
         }
