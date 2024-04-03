@@ -37,6 +37,11 @@ typedef enum StatusBits {
     CARRY_BIT     = 1,
 } StatusBits;
 
+typedef enum InterruptType {
+    IRQ,
+    NMI,
+} InterruptType;
+
 typedef struct CPU {
     word pc;
     byte sp;
@@ -47,12 +52,14 @@ typedef struct CPU {
     word skip_cycles;
     byte pending_nmi;
     byte pending_irq;
+
+    struct Memory* memory;
 } CPU;
 
 void init_cpu(struct Emulator* emulator);
 
 void reset_cpu(struct CPU* cpu);
-void step_cpu(struct CPU* cpu);
-byte execute_cpu(struct CPU* cpu, Memory* memory);
+void execute_cpu(struct CPU* cpu);
+void interrupt_cpu(struct CPU* cpu, InterruptType type);
 
 #endif //OLDNES_CPU_H

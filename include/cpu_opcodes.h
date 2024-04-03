@@ -23,7 +23,7 @@ typedef struct Instruction {
     byte opcode;
     Operation operation;
     AddressMode address_mode;
-    byte cycles;
+    word cycles;
 } Instruction;
 
 extern const Instruction INSTRUCTIONS[0x100];
