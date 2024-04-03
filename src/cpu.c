@@ -5,7 +5,7 @@
 static byte execute(struct CPU* cpu, const struct Instruction* instr);
 static void interrupt(struct CPU* cpu, InterruptType type);
 
-// Memory access functions
+// CPUBus access functions
 static byte fetch_byte(struct CPU* cpu);
 static word fetch_word(struct CPU* cpu);
 static byte read_byte(const struct CPU* cpu, word address);
@@ -51,7 +51,7 @@ static void pull_status(struct CPU* cpu);
 
 void init_cpu(struct Emulator* emulator) {
     struct CPU* cpu = &emulator->cpu;
-    cpu->memory = &emulator->memory;
+    cpu->bus = &emulator->cpu_bus;
     reset_cpu(&emulator->cpu);
 }
 
@@ -414,7 +414,7 @@ static void interrupt(struct CPU* cpu, InterruptType type) {
 }
 
 static byte fetch_byte(struct CPU* cpu) {
-    return read_memory(cpu->memory, cpu->pc++);
+    return read_memory(cpu->bus, cpu->pc++);
 }
 
 static word fetch_word(struct CPU* cpu) {
@@ -424,7 +424,7 @@ static word fetch_word(struct CPU* cpu) {
 }
 
 static byte read_byte(const struct CPU* cpu, word address) {
-    return read_memory(cpu->memory, address);
+    return read_memory(cpu->bus, address);
 }
 
 static word read_word(const struct CPU* cpu, word address) {
@@ -434,7 +434,7 @@ static word read_word(const struct CPU* cpu, word address) {
 }
 
 static void write_byte(struct CPU* cpu, word address, byte value) {
-    write_memory(cpu->memory, address, value);
+    write_memory(cpu->bus, address, value);
 }
 
 static void write_word(struct CPU* cpu, word address, word value) {
@@ -454,7 +454,7 @@ static void push_word(struct CPU* cpu, word value) {
 
 static byte pull_byte(struct CPU* cpu) {
     cpu->sp++;
-    return read_memory(cpu->memory, sp_to_address(cpu));
+    return read_memory(cpu->bus, sp_to_address(cpu));
 }
 
 static word pull_word(struct CPU* cpu) {

@@ -1,7 +1,7 @@
 #ifndef OLDNES_CPU_H
 #define OLDNES_CPU_H
 
-#include "memory.h"
+#include "cpu_bus.h"
 
 #define NMI_VECTOR   0xfffa
 #define RESET_VECTOR 0xfffc
@@ -53,7 +53,7 @@ typedef struct CPU {
     byte pending_nmi;
     byte pending_irq;
 
-    struct Memory* memory;
+    struct CPUBus* bus;
 } CPU;
 
 void init_cpu(struct Emulator* emulator);
