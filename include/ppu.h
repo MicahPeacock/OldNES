@@ -11,6 +11,7 @@
 #define VISIBLE_SCANLINES     240
 
 #define SCREEN_SIZE SCANLINE_VISIBLE_DOTS * VISIBLE_SCANLINES
+#define OAM_SIZE 0x100
 #define ATTRIBUTE_OFFSET 0x3C0
 
 typedef union PPUCtrl {
@@ -60,19 +61,19 @@ typedef union LoopyRegister {
         word fine_y      : 3;
         word unused      : 1;
     };
-    word value;
+    word address;
 } PPURegister;
 
 struct Emulator;
 
 typedef struct PPU {
     usize screen_buffer[SCREEN_SIZE];
-    byte oam[0x100];
+    byte oam[OAM_SIZE];
 
-    PPURegister vram_address;
-    PPURegister temp_address;
+    PPURegister vram;
+    PPURegister temp;
     byte oam_address;
-    byte address_latch;
+    byte first_write;
     byte data_buffer;
     byte fine_x;
 
