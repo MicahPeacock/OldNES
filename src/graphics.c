@@ -6,7 +6,7 @@ void init_graphics(struct GraphicsContext* gfx, uint32_t systems) {
     gfx->window = SDL_CreateWindow("OldNES Emulator",
             SDL_WINDOWPOS_CENTERED,
             SDL_WINDOWPOS_CENTERED,
-            gfx->width * (int)gfx->scale,
+            gfx->width  * (int)gfx->scale,
             gfx->height * (int)gfx->scale,
             SDL_WINDOW_SHOWN);
     if (gfx->window == NULL) {
@@ -45,7 +45,7 @@ void free_graphics(struct GraphicsContext* gfx) {
     SDL_DestroyWindow(gfx->window);
     SDL_Quit();
 
-    LOG(DEBUG, "Graphics clean up finished.");
+    LOG(DEBUG, "Graphics clean up finished");
 }
 
 void render_graphics(struct GraphicsContext* gfx, const uint32_t* buffer){

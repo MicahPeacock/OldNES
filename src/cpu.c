@@ -414,7 +414,7 @@ static void interrupt(struct CPU* cpu, InterruptType type) {
 }
 
 static byte fetch_byte(struct CPU* cpu) {
-    return read_memory(cpu->bus, cpu->pc++);
+    return cpu_read(cpu->bus, cpu->pc++);
 }
 
 static word fetch_word(struct CPU* cpu) {
@@ -424,7 +424,7 @@ static word fetch_word(struct CPU* cpu) {
 }
 
 static byte read_byte(const struct CPU* cpu, word address) {
-    return read_memory(cpu->bus, address);
+    return cpu_read(cpu->bus, address);
 }
 
 static word read_word(const struct CPU* cpu, word address) {
@@ -434,7 +434,7 @@ static word read_word(const struct CPU* cpu, word address) {
 }
 
 static void write_byte(struct CPU* cpu, word address, byte value) {
-    write_memory(cpu->bus, address, value);
+    cpu_write(cpu->bus, address, value);
 }
 
 static void write_word(struct CPU* cpu, word address, word value) {
@@ -454,7 +454,7 @@ static void push_word(struct CPU* cpu, word value) {
 
 static byte pull_byte(struct CPU* cpu) {
     cpu->sp++;
-    return read_memory(cpu->bus, sp_to_address(cpu));
+    return cpu_read(cpu->bus, sp_to_address(cpu));
 }
 
 static word pull_word(struct CPU* cpu) {

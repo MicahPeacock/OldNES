@@ -4,7 +4,7 @@
 #include "definitions.h"
 #include "mapper.h"
 
-struct PPU;
+struct Emulator;
 
 typedef struct PPUBus {
     byte vram[0x800];
@@ -13,9 +13,9 @@ typedef struct PPUBus {
     struct Mapper* mapper;
 } PPUBus;
 
-void init_vram(struct PPU* ppu);
+void init_ppu_bus(struct Emulator* emulator);
 
-byte read_vram(struct PPUBus* ppu, word address);
-void write_vram(struct PPUBus* ppu, word address, byte value);
+byte ppu_read(struct PPUBus* bus, word address);
+void ppu_write(struct PPUBus* bus, word address, byte value);
 
 #endif //OLDNES_PPU_BUS_H

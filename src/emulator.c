@@ -10,7 +10,8 @@ void init_emulator(struct Emulator* emulator, int argc, char* argv[]) {
     }
     load_mapper(argv[1], &emulator->mapper);
 
-    init_memory(emulator);
+    init_ppu_bus(emulator);
+    init_cpu_bus(emulator);
     init_ppu(emulator);
     init_cpu(emulator);
 

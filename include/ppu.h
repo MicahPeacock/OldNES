@@ -4,12 +4,14 @@
 #include "definitions.h"
 #include "ppu_bus.h"
 
-#define VISIBLE_SCANLINES 240
-#define VISIBLE_DOTS 256
-#define NTSC_SCANLINES_PER_FRAME 261
-#define PAL_SCANLINES_PER_FRAME 311
-#define DOTS_PER_SCANLINE 341
-#define END_DOT 340
+#define SCANLINE_CYCLE_LENGTH 341
+#define SCANLINE_CYCLE_END    340
+#define SCANLINE_FRAME_END    261
+#define SCANLINE_VISIBLE_DOTS 256
+#define VISIBLE_SCANLINES     240
+
+#define SCREEN_SIZE SCANLINE_VISIBLE_DOTS * VISIBLE_SCANLINES
+#define ATTRIBUTE_OFFSET 0x3C0
 
 typedef union PPUCtrl {
     struct {
@@ -64,17 +66,37 @@ typedef union LoopyRegister {
 struct Emulator;
 
 typedef struct PPU {
-    usize screen_buffer[VISIBLE_DOTS * VISIBLE_SCANLINES];
+    usize screen_buffer[SCREEN_SIZE];
     byte oam[0x100];
+
+    PPURegister vram_address;
+    PPURegister temp_address;
+    byte oam_address;
+    byte address_latch;
+    byte data_buffer;
+    byte fine_x;
 
     PPUCtrl ctrl;
     PPUMask mask;
     PPUStat stat;
 
+    word scanline;
+    word cycle;
+
     struct PPUBus*   bus;
     struct Emulator* emulator;
-
 } PPU;
+
+static const usize PALETTE[0x40] = {
+        0xff545454, 0xff001e74, 0xff081090, 0xff300088, 0xff440064, 0xff5c0030, 0xff540400, 0xff3c1800,
+        0xff202a00, 0xff083a00, 0xff004000, 0xff003c00, 0xff00323c, 0xff000000, 0xff000000, 0xff000000,
+        0xff989698, 0xff084cc4, 0xff3032ec, 0xff5c1ee4, 0xff8814b0, 0xffa01464, 0xff982220, 0xff783c00,
+        0xff545a00, 0xff287200, 0xff087c00, 0xff007628, 0xff006678, 0xff000000, 0xff000000, 0xff000000,
+        0xffeceeec, 0xff4c9aec, 0xff787cec, 0xffb062ec, 0xffe454ec, 0xffec58b4, 0xffec6a64, 0xffd48820,
+        0xffa0aa00, 0xff74c400, 0xff4cd020, 0xff38cc6c, 0xff38b4cc, 0xff3c3c3c, 0xff000000, 0xff000000,
+        0xffeceeec, 0xffa8ccec, 0xffbcbcec, 0xffd4b2ec, 0xffecaeec, 0xffecaed4, 0xffecb4b0, 0xffe4c490,
+        0xffccd278, 0xffb4de78, 0xffa8e290, 0xff98e2b4, 0xffa0d6e4, 0xffa0a2a0, 0xff000000, 0xff000000,
+};
 
 void init_ppu(struct Emulator* emulator);
 
@@ -84,20 +106,15 @@ void execute_ppu(struct PPU* ppu);
 void dma(struct PPU* ppu, byte address);
 
 byte read_ppu(struct PPU* ppu);
-void write_ppu(struct PPU* ppu, byte value);
-
 byte read_status(struct PPU* ppu);
-byte read_oam_data(struct PPU* ppu);
+byte read_oam(struct PPU* ppu);
 
+void write_ppu(struct PPU* ppu, byte value);
 void set_control(struct PPU* ppu, byte ctrl);
 void set_mask(struct PPU* ppu, byte mask);
 void set_oam_address(struct PPU* ppu, byte address);
-void set_data_address(struct PPU* ppu, byte address);
+void set_vram_address(struct PPU* ppu, byte address);
 void set_scroll(struct PPU* ppu, byte scroll);
-void set_data(struct PPU* ppu, byte data);
-void set_oam_data(struct PPU* ppu, byte value);
-
-byte read_oam(struct PPU* ppu, byte address);
-void write_oam(struct PPU* ppu, byte address, byte value);
+void write_oam(struct PPU* ppu, byte value);
 
 #endif //OLDNES_PPU_H

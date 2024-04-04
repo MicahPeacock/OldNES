@@ -5,16 +5,17 @@
 #include "emulator.h"
 #include "log.h"
 
-void init_memory(struct Emulator* emulator) {
+void init_cpu_bus(struct Emulator* emulator) {
     struct CPUBus* bus = &emulator->cpu_bus;
     bus->emulator = emulator;
-    bus->mapper   = &emulator->mapper;
+    bus->mapper = &emulator->mapper;
+
     memset(bus->ram, 0, RAM_SIZE);
     init_controller(&bus->pad1, 0);
     init_controller(&bus->pad2, 1);
 }
 
-byte read_memory(struct CPUBus* bus, word address) {
+byte cpu_read(struct CPUBus* bus, word address) {
     if (address < 0x2000) {
         return bus->ram[address];
     }
@@ -27,7 +28,7 @@ byte read_memory(struct CPUBus* bus, word address) {
             case PPUSTAT:
                 return read_status(ppu);
             case OAMDATA:
-                return read_oam_data(ppu);
+                return read_oam(ppu);
             case PPUDATA:
                 return read_ppu(ppu);
             case JOYPAD1:
@@ -35,7 +36,7 @@ byte read_memory(struct CPUBus* bus, word address) {
             case JOYPAD2:
                 return read_controller(&bus->pad2);
             default:
-                LOG(DEBUG, "Cannot read from register 0x%X", address);
+                LOG(DEBUG, "Cannot read from register 0x%x", address);
                 return 0;
         }
     }
@@ -52,7 +53,7 @@ byte read_memory(struct CPUBus* bus, word address) {
     }
 }
 
-void write_memory(struct CPUBus* bus, word address, byte value) {
+void cpu_write(struct CPUBus* bus, word address, byte value) {
     if (address < 0x2000) {
         bus->ram[address & 0x7ff] = value;
         return;
@@ -73,7 +74,7 @@ void write_memory(struct CPUBus* bus, word address, byte value) {
                 set_scroll(ppu, value);
                 return;
             case PPUADDR:
-                set_data_address(ppu, value);
+                set_vram_address(ppu, value);
                 return;
             case PPUDATA:
                 write_ppu(ppu, value);
@@ -85,14 +86,14 @@ void write_memory(struct CPUBus* bus, word address, byte value) {
                 dma(ppu, value);
                 return;
             case OAMDATA:
-                set_oam_data(ppu, value);
+                write_oam(ppu, value);
                 return;
             case JOYPAD1:
                 write_controller(&bus->pad1, value);
                 write_controller(&bus->pad2, value);
                 return;
             default:
-                LOG(DEBUG, "Cannot write to register 0x%X", address);
+                LOG(DEBUG, "Cannot write to register 0x%x", address);
                 return;
         }
     }
@@ -109,8 +110,10 @@ void write_memory(struct CPUBus* bus, word address, byte value) {
     }
 }
 
-byte* get_page_ptr(struct CPUBus* bus, word address) {
-    if (address < 0x2000)
+const byte* get_page_ptr(const struct CPUBus* bus, word address) {
+    if (address < 0x2000) {
         return &bus->ram[address & 0x7ff];
+    }
+    LOG(ERROR, "Could not access pointer to address 0x%x", address);
     exit(EXIT_FAILURE);
 }
