@@ -19,13 +19,14 @@ typedef struct INESHeader {
     byte unused[5];
 } INESHeader;
 
-static void read_rom_data(SDL_RWops* file, byte** ptr, usize size);
+static byte* read_rom_data(SDL_RWops* file, usize bytes);
 static void select_mapper(struct Mapper* mapper);
 
 static byte read_prg(const struct Mapper* mapper, word address);
 static byte read_chr(const struct Mapper* mapper, word address);
 static void write_prg(struct Mapper* mapper, word address, byte value);
 static void write_chr(struct Mapper* mapper, word address, byte value);
+static void scanline_irq(struct Mapper* mapper);
 
 void load_mapper(const char* filename, struct Mapper* mapper) {
     SDL_RWops* file = SDL_RWFromFile(filename, "rb");
@@ -51,8 +52,8 @@ void load_mapper(const char* filename, struct Mapper* mapper) {
     mapper->mirroring = (header.flags6 & 0x08) ?: (header.flags6 & 0x01);
     mapper->mapper_id = (header.flags7 & 0xf0) | ((header.flags6 & 0xf0) >> 4);
 
-    read_rom_data(file, &mapper->prg_rom, 0x4000 * mapper->prg_banks);
-    read_rom_data(file, &mapper->chr_rom, 0x2000 * mapper->chr_banks);
+    mapper->prg_rom = read_rom_data(file, 0x4000 * mapper->prg_banks);
+    mapper->chr_rom = read_rom_data(file, 0x2000 * mapper->chr_banks);
 
     SDL_RWclose(file);
 
@@ -60,27 +61,40 @@ void load_mapper(const char* filename, struct Mapper* mapper) {
 }
 
 void free_mapper(struct Mapper* mapper) {
-    if (mapper->prg_rom != NULL)
+    if (mapper->prg_rom != NULL) {
         free(mapper->prg_rom);
-    if (mapper->chr_rom != NULL)
+    }
+    if (mapper->chr_rom != NULL) {
         free(mapper->chr_rom);
+    }
     LOG(DEBUG, "Mapper cleanup complete");
 }
 
-static void read_rom_data(SDL_RWops* file, byte** ptr, usize size) {
-    if (size) {
-        *ptr = malloc(size);
-        SDL_RWread(file, *ptr, size, 1);
+static byte* read_rom_data(SDL_RWops* file, usize bytes) {
+    if (!bytes) {
+        return NULL;
     } else {
-        *ptr = NULL;
+        byte* ptr = malloc(bytes);
+        SDL_RWread(file, ptr, bytes, 1);
+        return ptr;
     }
 }
 
 static void select_mapper(Mapper* mapper) {
-    mapper->read_prg  = read_prg;
-    mapper->read_chr  = read_chr;
-    mapper->write_prg = write_prg;
-    mapper->write_chr = write_chr;
+    mapper->read_prg     = read_prg;
+    mapper->read_chr     = read_chr;
+    mapper->write_prg    = write_prg;
+    mapper->write_chr    = write_chr;
+    mapper->scanline_irq = scanline_irq;
+
+    switch (mapper->mapper_id) {
+        case NROM:
+            // Do nothing. Uses default methods
+            break;
+        default:
+            LOG(ERROR, "Mapper %u not implemented", mapper->mapper_id);
+            exit(EXIT_FAILURE);
+    }
 }
 
 static byte read_prg(const struct Mapper* mapper, word address) {
@@ -99,3 +113,6 @@ static void write_chr(struct Mapper* mapper, word address, byte value) {
     LOG(DEBUG, "Attempted to write to CHR-ROM");
 }
 
+static void scanline_irq(struct Mapper* mapper) {
+    // Do nothing. This is to be implemented by other mappers.
+}

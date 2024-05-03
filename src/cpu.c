@@ -5,7 +5,7 @@
 static byte execute(struct CPU* cpu, const struct Instruction* instr);
 static void interrupt(struct CPU* cpu, InterruptType type);
 
-// CPUBus access functions
+// Memory access functions
 static byte fetch_byte(struct CPU* cpu);
 static word fetch_word(struct CPU* cpu);
 static byte read_byte(const struct CPU* cpu, word address);
@@ -59,24 +59,25 @@ void reset_cpu(struct CPU* cpu) {
     cpu->pc = read_word(cpu, RESET_VECTOR);
     cpu->sp = STACK_RESET;
     cpu->a = cpu->x = cpu->y = 0;
-    cpu->status.c = cpu->status.z = cpu->status.d = cpu->status.b = cpu->status.v = cpu->status.n = 0;
-    cpu->status.i = 1;
+    cpu->status.c = cpu->status.z = cpu->status.d = cpu->status.b = cpu->status.v = cpu->status.n = false;
+    cpu->status.i = true;
 }
 
 void execute_cpu(struct CPU* cpu) {
     cpu->cycles++;
-    if(cpu->skip_cycles-- > 1)
+    if(cpu->skip_cycles-- > 1) {
         return;
+    }
     cpu->skip_cycles = 0;
 
     if(cpu->pending_nmi) {
         interrupt(cpu, NMI);
-        cpu->pending_nmi = cpu->pending_irq = 0;
+        cpu->pending_nmi = cpu->pending_irq = false;
         return;
     }
     if(cpu->pending_irq) {
         interrupt(cpu, IRQ);
-        cpu->pending_nmi = cpu->pending_irq = 0;
+        cpu->pending_nmi = cpu->pending_irq = false;
         return;
     }
 
@@ -88,10 +89,10 @@ void execute_cpu(struct CPU* cpu) {
 void interrupt_cpu(struct CPU* cpu, InterruptType type) {
     switch (type) {
         case IRQ:
-            cpu->pending_irq = 1;
+            cpu->pending_irq = true;
             break;
         case NMI:
-            cpu->pending_nmi = 1;
+            cpu->pending_nmi = true;
             break;
     }
 }
@@ -280,31 +281,31 @@ static byte execute(struct CPU* cpu, const struct Instruction* instr) {
             break;
         }
         case CLC: {
-            cpu->status.c = 0;
+            cpu->status.c = false;
             break;
         }
         case SEC: {
-            cpu->status.c = 1;
+            cpu->status.c = true;
             break;
         }
         case CLD: {
-            cpu->status.d = 0;
+            cpu->status.d = false;
             break;
         }
         case SED: {
-            cpu->status.d = 1;
+            cpu->status.d = true;
             break;
         }
         case CLI: {
-            cpu->status.i = 0;
+            cpu->status.i = false;
             break;
         }
         case SEI: {
-            cpu->status.i = 1;
+            cpu->status.i = true;
             break;
         }
         case CLV: {
-            cpu->status.v = 0;
+            cpu->status.v = false;
             break;
         }
         case ADC: {
@@ -379,8 +380,8 @@ static byte execute(struct CPU* cpu, const struct Instruction* instr) {
             push_word(cpu, cpu->pc + 1);
             push_status(cpu);
             cpu->pc = read_word(cpu, IRQ_VECTOR);
-            cpu->status.b = 1;
-            cpu->status.i = 1;
+            cpu->status.b = true;
+            cpu->status.i = true;
             break;
         }
         case RTI: {
@@ -396,11 +397,12 @@ static byte execute(struct CPU* cpu, const struct Instruction* instr) {
 }
 
 static void interrupt(struct CPU* cpu, InterruptType type) {
-    if(cpu->status.i)
+    if(cpu->status.i) {
         return;
+    }
     push_word(cpu, cpu->pc);
     push_status(cpu);
-    cpu->status.i = 1;
+    cpu->status.i = true;
 
     switch (type) {
         case IRQ:
@@ -414,7 +416,7 @@ static void interrupt(struct CPU* cpu, InterruptType type) {
 }
 
 static byte fetch_byte(struct CPU* cpu) {
-    return cpu_read(cpu->bus, cpu->pc++);
+    return read_cpu_memory(cpu->bus, cpu->pc++);
 }
 
 static word fetch_word(struct CPU* cpu) {
@@ -424,7 +426,7 @@ static word fetch_word(struct CPU* cpu) {
 }
 
 static byte read_byte(const struct CPU* cpu, word address) {
-    return cpu_read(cpu->bus, address);
+    return read_cpu_memory(cpu->bus, address);
 }
 
 static word read_word(const struct CPU* cpu, word address) {
@@ -434,7 +436,7 @@ static word read_word(const struct CPU* cpu, word address) {
 }
 
 static void write_byte(struct CPU* cpu, word address, byte value) {
-    cpu_write(cpu->bus, address, value);
+    write_cpu_memory(cpu->bus, address, value);
 }
 
 static void write_word(struct CPU* cpu, word address, word value) {
@@ -454,7 +456,7 @@ static void push_word(struct CPU* cpu, word value) {
 
 static byte pull_byte(struct CPU* cpu) {
     cpu->sp++;
-    return cpu_read(cpu->bus, sp_to_address(cpu));
+    return read_cpu_memory(cpu->bus, sp_to_address(cpu));
 }
 
 static word pull_word(struct CPU* cpu) {
@@ -623,5 +625,5 @@ static void push_status(struct CPU* cpu) {
 
 static void pull_status(struct CPU* cpu) {
     cpu->status.value = pull_byte(cpu);
-    cpu->status.b = cpu->status.u = 0;
+    cpu->status.b = cpu->status.u = false;
 }

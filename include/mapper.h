@@ -36,6 +36,8 @@ typedef struct Mapper {
     byte (*read_chr)(const struct Mapper* mapper, word address);
     void (*write_prg)(struct Mapper* mapper, word address, byte value);
     void (*write_chr)(struct Mapper* mapper, word address, byte value);
+
+    void (*scanline_irq)(struct Mapper* mapper);
 } Mapper;
 
 void load_mapper(const char* filename, struct Mapper* mapper);

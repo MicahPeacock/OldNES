@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <string.h>
 
 #include "ppu_bus.h"
@@ -8,7 +7,7 @@ static void set_mirroring(struct PPUBus* bus);
 static void set_mirror_mapping(struct PPUBus* bus, word tr, word tl, word br, word bl);
 
 static word to_palette_address(word address);
-static word to_vram_address(word address);
+static word to_nametable_address(const word* name_table, word address);
 
 void init_ppu_bus(struct Emulator* emulator) {
     struct PPUBus* bus = &emulator->ppu_bus;
@@ -19,12 +18,12 @@ void init_ppu_bus(struct Emulator* emulator) {
     memset(bus->palette, 0,  0x20);
 }
 
-byte ppu_read(struct PPUBus* bus, word address) {
+byte read_ppu_memory(const struct PPUBus* bus, word address) {
     if (address < 0x2000) {
         return bus->mapper->read_chr(bus->mapper, address);
     }
     if (address < 0x3f00) {
-        return bus->vram[bus->nametable[address / 0x400] + to_vram_address(address)];
+        return bus->vram[to_nametable_address(bus->nametable, address)];
     }
     if (address < 0x4000) {
         return bus->palette[to_palette_address(address)];
@@ -32,17 +31,18 @@ byte ppu_read(struct PPUBus* bus, word address) {
     return 0;
 }
 
-void ppu_write(struct PPUBus* bus, word address, byte value) {
+void write_ppu_memory(struct PPUBus* bus, word address, byte value) {
     if (address < 0x2000) {
         bus->mapper->write_chr(bus->mapper, address, value);
         return;
     }
     if (address < 0x3f00) {
-        bus->vram[bus->nametable[address / 0x400] + to_vram_address(address)] = value;
+        bus->vram[to_nametable_address(bus->nametable, address)] = value;
         return;
     }
     if (address < 0x4000) {
         bus->palette[to_palette_address(address)] = value;
+        return;
     }
 }
 
@@ -85,6 +85,7 @@ static word to_palette_address(word address) {
     return palette_addr;
 }
 
-static word to_vram_address(word address) {
-
+static word to_nametable_address(const word* name_table, word address) {
+    const word nametable_address = (address - 0x2000) % 0xfff;
+    return name_table[nametable_address / 0x400] + nametable_address & 0x3ff;
 }

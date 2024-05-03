@@ -19,7 +19,7 @@ void init_emulator(struct Emulator* emulator, int argc, char* argv[]) {
     gfx->width  = NES_VIDEO_WIDTH;
     gfx->height = NES_VIDEO_HEIGHT;
     gfx->scale  = 3.0f;
-    init_graphics(&emulator->gfx, SDL_INIT_EVERYTHING);
+    init_graphics(gfx, SDL_INIT_EVERYTHING);
 
     emulator->exit  = 0;
     emulator->pause = 0;
@@ -45,11 +45,14 @@ void run_emulator(struct Emulator* emulator) {
             handle_event(emulator, &event);
         }
         if (!emulator->pause) {
-            execute_ppu(&emulator->ppu);
-            execute_ppu(&emulator->ppu);
-            execute_ppu(&emulator->ppu);
-            execute_cpu(&emulator->cpu);
+            while (!ppu->render) {
+                execute_ppu(ppu);
+                execute_ppu(ppu);
+                execute_ppu(ppu);
+                execute_cpu(cpu);
+            }
             render_graphics(gfx, ppu->screen_buffer);
+            ppu->render = 0;
         } else {
 
         }

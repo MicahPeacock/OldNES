@@ -15,7 +15,7 @@ typedef struct PPUBus {
 
 void init_ppu_bus(struct Emulator* emulator);
 
-byte ppu_read(struct PPUBus* bus, word address);
-void ppu_write(struct PPUBus* bus, word address, byte value);
+byte read_ppu_memory(const struct PPUBus* bus, word address);
+void write_ppu_memory(struct PPUBus* bus, word address, byte value);
 
 #endif //OLDNES_PPU_BUS_H

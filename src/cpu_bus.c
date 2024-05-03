@@ -15,9 +15,9 @@ void init_cpu_bus(struct Emulator* emulator) {
     init_controller(&bus->pad2, 1);
 }
 
-byte cpu_read(struct CPUBus* bus, word address) {
+byte read_cpu_memory(struct CPUBus* bus, word address) {
     if (address < 0x2000) {
-        return bus->ram[address];
+        return bus->ram[address & 0x7ff];
     }
     if (address < 0x4000) {
         address &= 0x2007;
@@ -53,7 +53,7 @@ byte cpu_read(struct CPUBus* bus, word address) {
     }
 }
 
-void cpu_write(struct CPUBus* bus, word address, byte value) {
+void write_cpu_memory(struct CPUBus* bus, word address, byte value) {
     if (address < 0x2000) {
         bus->ram[address & 0x7ff] = value;
         return;

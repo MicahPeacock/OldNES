@@ -2,6 +2,7 @@
 #define OLDNES_DEFINITIONS_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef uint8_t  byte;
 typedef uint16_t word;

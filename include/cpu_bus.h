@@ -35,8 +35,8 @@ typedef struct CPUBus {
 
 void init_cpu_bus(struct Emulator* emulator);
 
-byte cpu_read(struct CPUBus* bus, word address);
-void cpu_write(struct CPUBus* bus, word address, byte value);
+byte read_cpu_memory(struct CPUBus* bus, word address);
+void write_cpu_memory(struct CPUBus* bus, word address, byte value);
 const byte* get_page_ptr(const struct CPUBus* bus, word address);
 
 #endif //OLDNES_CPU_BUS_H
